@@ -1,5 +1,5 @@
-This is a console version duia client and it was tested on many unix based OS
- versions like linux (many distributions), freeBSD, tomato, open-WRT & DD-WRT.
+This is a console version duia client and it was tested on various unix based OS
+ versions like linux, freeBSD, tomato, open-WRT & DD-WRT.
 
 This script is using "wget". If you prefer "curl" instead, uncomment "curl" lines and comment (#) "wget" ones.
 
