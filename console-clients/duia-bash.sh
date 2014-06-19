@@ -10,8 +10,8 @@ md5_pass="000000000000000000000000000000" # replace with your own md5_pass #
 use_ip_version=4
 ip_cache_file="duia${use_ip_version}.cache"
 tmp_ip_file="$( mktemp )"
-
-if [ $host == "example.duia.us" ] || [ $md5_pass == "000000000000000000000000000000" ] ; then
+user_agent="duia-unix-1.0.0.3"
+if [ $host = "example.duia.us" ] || [ $md5_pass = "000000000000000000000000000000" ] ; then
  echo "Edit this script and add your own hostname and md5 password!" >&2
  exit
 fi
@@ -21,9 +21,9 @@ fi
 ip="`wget -qO- http://ipv${use_ip_version}.duia.ro`"
 #ip="`curl -sG http://ipv${use_ip_version}.duia.ro`"
 
-function set_ip_for_host() {
-	`wget -qO- --user-agent="duia-cunix-1.0.0.2" "http://ipv${use_ip_version}.duia.ro/dynamic.duia?host=$host&password=$md5_pass&ip${use_ip_version}=$ip" > /dev/null`
-	#`curl -sG -A "duia-cunix-1.0.0.2" "http://ipv${use_ip_version}.duia.ro/dynamic.duia?host=$host&password=$md5_pass&ip${use_ip_version}=$ip" > /dev/null`
+set_ip_for_host () {
+	`wget -qO- --user-agent="$user_agent" "http://ipv${use_ip_version}.duia.ro/dynamic.duia?host=$host&password=$md5_pass&ip${use_ip_version}=$ip" > /dev/null`
+	#`curl -sG -A "$user-agent" "http://ipv${use_ip_version}.duia.ro/dynamic.duia?host=$host&password=$md5_pass&ip${use_ip_version}=$ip" > /dev/null`
 	cp "${tmp_ip_file}" "${ip_cache_file}"
 	rm -f "${tmp_ip_file}"
 	
