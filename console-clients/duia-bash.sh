@@ -4,11 +4,11 @@
 
 ##################### USE YOUR OWN CREDENTIALS HERE!!! #####################
 host="example.duia.us" # replace with your own hostname                    #
-md5_pass="000000000000000000000000000000" # replace with your own md5_pass # 
+md5_pass="000000000000000000000000000000" # replace with your own md5_pass #
 ############################################################################
 
 has() {
-    type $1 > /dev/null 2>&1
+	type $1 > /dev/null 2>&1
 }
 
 use_ip_version=4
@@ -27,19 +27,19 @@ fi
 
 ip_url="http://ipv${use_ip_version}.duia.ro"
 if has wget; then
-    ip=`wget -qO- ${ip_url}`
+	ip=`wget -qO- ${ip_url}`
 else
-    ip=`curl -sG ${ip_url}`
+	ip=`curl -sG ${ip_url}`
 fi
 
 
 set_ip_for_host () {
-    set_ip_url="http://ipv${use_ip_version}.duia.ro/dynamic.duia?host=$host&password=$md5_pass&ip${use_ip_version}=$ip" 
-    if has wget; then
-        wget -qO- --user-agent="$user_agent" $set_ip_url > /dev/null
-    else
-        curl -sG -A "${user_agent}" $set_ip_url > /dev/null
-    fi
+	set_ip_url="http://ipv${use_ip_version}.duia.ro/dynamic.duia?host=$host&password=$md5_pass&ip${use_ip_version}=$ip" 
+	if has wget; then
+		wget -qO- --user-agent="$user_agent" $set_ip_url > /dev/null
+	else
+		curl -sG -A "${user_agent}" $set_ip_url > /dev/null
+	fi
 	cp "${tmp_ip_file}" "${ip_cache_file}"
 	rm -f "${tmp_ip_file}"
 	
