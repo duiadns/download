@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # if you don't know your own md5_pass please visit https://www.duiadns.net/account/account_info.html
 
