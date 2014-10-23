@@ -1,29 +1,45 @@
-#!/bin/bash
+#!/bin/sh
 
 # if you don't know your own md5_pass please visit https://www.duiadns.net/account/account_info.html
 
 ##################### USE YOUR OWN CREDENTIALS HERE!!! #####################
 host="example.duia.us" # replace with your own hostname                    #
-md5_pass="000000000000000000000000000000" # replace with your own md5_pass # 
+md5_pass="000000000000000000000000000000" # replace with your own md5_pass #
 ############################################################################
+
+has() {
+	type $1 > /dev/null 2>&1
+}
 
 use_ip_version=4
 ip_cache_file="duia${use_ip_version}.cache"
 tmp_ip_file="$( mktemp )"
 user_agent="duia-unix-1.0.0.3"
+
+
+has curl || has wget || { echo "Either curl or wget is required, but none were found" 1>&2 && exit 1; }
+
+
 if [ $host = "example.duia.us" ] || [ $md5_pass = "000000000000000000000000000000" ] ; then
- echo "Edit this script and add your own hostname and md5 password!" >&2
- exit
+	echo "Edit this script and add your own hostname and md5 password!" >&2
+	exit
 fi
 
-### This script is using "wget". If you prefer "curl" instead, uncomment "curl" lines and comment (#) "wget" ones.
+ip_url="http://ipv${use_ip_version}.duia.ro"
+if has wget; then
+	ip=`wget -qO- ${ip_url}`
+else
+	ip=`curl -sG ${ip_url}`
+fi
 
-ip="`wget -qO- http://ipv${use_ip_version}.duia.ro`"
-#ip="`curl -sG http://ipv${use_ip_version}.duia.ro`"
 
 set_ip_for_host () {
-	`wget -qO- --user-agent="$user_agent" "http://ipv${use_ip_version}.duia.ro/dynamic.duia?host=$host&password=$md5_pass&ip${use_ip_version}=$ip" > /dev/null`
-	#`curl -sG -A "$user-agent" "http://ipv${use_ip_version}.duia.ro/dynamic.duia?host=$host&password=$md5_pass&ip${use_ip_version}=$ip" > /dev/null`
+	set_ip_url="http://ipv${use_ip_version}.duia.ro/dynamic.duia?host=$host&password=$md5_pass&ip${use_ip_version}=$ip" 
+	if has wget; then
+		wget -qO- --user-agent="$user_agent" $set_ip_url > /dev/null
+	else
+		curl -sG -A "${user_agent}" $set_ip_url > /dev/null
+	fi
 	cp "${tmp_ip_file}" "${ip_cache_file}"
 	rm -f "${tmp_ip_file}"
 	
