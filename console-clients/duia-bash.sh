@@ -12,6 +12,7 @@ has() {
 }
 
 use_ip_version=4
+duiadns_propagation_timeout=20
 ip_cache_file="duia${use_ip_version}.cache"
 tmp_ip_file="$( mktemp )"
 user_agent="duia-unix-1.0.0.3"
@@ -32,6 +33,24 @@ else
 	ip=`curl -sG ${ip_url}`
 fi
 
+dig_query_parm="A"
+wget_query_parm="-4"
+if [ $use_ip_version -eq 6 ]
+then
+	dig_query_parm="AAAA"
+	wget_query_parm="-6"
+fi
+
+if has dig
+then 
+	duia_ip=`dig @ns1.duiadns.net $dig_query_parm +short $host`
+	if [ -z $duia_ip ]
+	then
+		duia_ip=`dig @ns2.duiadns.net $dig_query_parm +short $host`
+	fi
+else
+	duia_ip=`wget wget_query_parm -t1 -T3 --no-dns-cache --spider $host 2>&1 | grep Resolving | grep -v failed | awk '{ print $4}'`
+fi
 
 set_ip_for_host () {
 	set_ip_url="http://ipv${use_ip_version}.duia.ro/dynamic.duia?host=$host&password=$md5_pass&ip${use_ip_version}=$ip" 
@@ -54,6 +73,14 @@ echo $ip > $tmp_ip_file
 if [ -f "${ip_cache_file}" ] ; then
 	echo "The file ${ip_cache_file} exists"
 	n=`grep $ip "$ip_cache_file" | wc -l`
+	if test `find "$ip_cache_file" -mmin +$duiadns_propagation_timeout` ; then
+		if [ "$duia_ip" != "$ip" ] ; then
+			echo "Your IPv${use_ip_version} address was updated $duiadns_propagation_timeout minute(s) ago, but DuiaDNS report different address. Update forced!"
+			set_ip_for_host
+			exit 0
+		fi
+	fi
+
 	if [ $n -eq 0 ] ; then
 		echo "Your IPv${use_ip_version} address is not in ${ip_cache_file} file; initiate DNS update & ${ip_cache_file} file update!"
 		set_ip_for_host
