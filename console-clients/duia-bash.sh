@@ -77,7 +77,7 @@ if [ -f "${ip_cache_file}" ] ; then
 		if [ "$duia_ip" != "$ip" ] ; then
 			echo "Your IPv${use_ip_version} address was updated $duiadns_propagation_timeout minute(s) ago, but DuiaDNS report different address. Update forced!"
 			set_ip_for_host
-			n=1
+			exit 0
 		fi
 	fi
 
