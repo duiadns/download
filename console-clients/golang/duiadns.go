@@ -1,174 +1,296 @@
 package main
 
+
+
+
 import (
-	"crypto/md5"
-	"fmt"
-	"io"
-	"io/ioutil"
-	"net/http"
-	"os"
-	"os/exec"
-	"path"
-	"path/filepath"
-	"strconv"
-	"time"
+ "crypto/md5"
+ "crypto/tls"
+ "fmt"
+ "io"
+ "io/ioutil"
+ "net/http"
+ "os"
+ "os/exec"
+ "path"
+ "path/filepath"
+ "strconv"
+ "time"
 )
 
-const UserAgent = "duia-go-1.0.0.2"
+const DuiaVersion = "2" + "." + "0" + "." + "0" + "." + "3"
+const UserAgent = "github" + "-" + DuiaVersion
 
 func getIpFromSite(version int) (s string, err error) {
-	//get my ip from server (ipv4/ipv6 compatible)
-	req, err := http.Get("http://" + "ipv" + strconv.Itoa(version) + ".duia.ro")
-	if err != nil {
-		//println("no ipv" + strconv.Itoa(version) + " connection")
-		return "none", err
-	}
-	ip, err := ioutil.ReadAll(req.Body)
-	//println("get ip" + strconv.Itoa(version) + " " + string(ip))
-	return string(ip), nil
+
+ resp, err := doRequest("https://" + "ipv" + strconv.Itoa(version) + ".duia.ro")
+ if err != nil {
+
+  return "none", err
+ }
+ defer resp.Body.Close()
+ ip, err := ioutil.ReadAll(resp.Body)
+
+ return string(ip), nil
 }
 
-func updateDNS(host, password, ip4, ip6 string) (err error) {
-	//connect to duia server and update both ipv4/ipv6 on the same request
-	client := &http.Client{}
-	req, err := http.NewRequest(
-		"GET",
-		"http://ip.duia.ro/dynamic.duia?host="+host+"&password="+password+"&ip4="+ip4+"&ip6="+ip6, nil)
-	if err != nil {
-		return err
-	}
-	//tested with http://httpbin.org
-	req.Header.Set("User-Agent", UserAgent)
-	resp, err := client.Do(req)
-	if err != nil {
-	}
-	defer resp.Body.Close()
-	return nil
+func doRequest(urlStr string) (r *http.Response, err error) {
+ tr := &http.Transport{
+  TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+ }
+ client := &http.Client{Transport: tr}
+ req, err := http.NewRequest("GET", urlStr, nil)
+ if err != nil {
+  return nil, err
+ }
+
+ req.Header.Set("User-Agent", UserAgent)
+ resp, err := client.Do(req)
+
+ return resp, err
+}
+
+func updateDNS4(host, password, ip4 string) (err error) {
+
+ resp, err := doRequest("https://ipv4.duia.ro/dynamic.duia?host="+host+"&password="+password+"&ip4="+ip4)
+ if err != nil {
+  return nil
+ }
+ defer resp.Body.Close()
+ return nil
+}
+
+func updateDNS6(host, password, ip6 string) (err error) {
+
+ resp, err := doRequest("https://ipv6.duia.ro/dynamic.duia?host="+host+"&password="+password+"&ip6="+ip6)
+ if err != nil {
+  return nil
+ }
+ defer resp.Body.Close()
+ return nil
+}
+
+func updateDNS(host, passwordAsMd5, ip4, ip6 string) (err error) {
+
+ resp, err := doRequest("https://ipv4.duia.ro/dynamic.duia?host="+host+"&password="+passwordAsMd5+"&ip4="+ip4+"&ip6="+ip6)
+ if err != nil {
+  return nil
+ }
+ defer resp.Body.Close()
+ return nil
 }
 
 func readCache() (ip4, ip6 string, err error) {
-	path, _ := os.Getwd()
-	file, err := os.Open(path + string(filepath.Separator) + "duia.cache")
-	if err != nil {
-		return "", "", err
-	}
-	fmt.Fscanf(file, "%s %s", &ip4, &ip6)
-	return ip4, ip6, nil
+ path, _ := os.Getwd()
+ file, err := os.Open(path + string(filepath.Separator) + "duia.cache")
+ if err != nil {
+  return "", "", err
+ }
+ defer file.Close()
+
+ fmt.Fscanf(file, "%s %s", &ip4, &ip6)
+ return ip4, ip6, nil
 }
 
 func updateCache(ip4, ip6 string) (err error) {
-	path, _ := os.Getwd()
-	file, err := os.Create(path + string(filepath.Separator) + "duia.cache")
-	if err != nil {
-		return err
-	}
-	// write creditentials in unix clasic style format
-	fmt.Fprintf(file, "%s %s", ip4, ip6)
-	return nil
+ path, _ := os.Getwd()
+ file, err := os.Create(path + string(filepath.Separator) + "duia.cache")
+ if err != nil {
+  return err
+ }
+ defer file.Close()
+
+
+ fmt.Fprintf(file, "%s %s", ip4, ip6)
+ return nil
 }
 
-func readCfg() (host, password string, err error) {
-	path, _ := os.Getwd()
-	// get creditentials from file
-	file, err := os.Open(path + string(filepath.Separator) + "duia.cfg")
-	if err != nil {
-		return "", "", err
-	}
-	fmt.Fscanf(file, "%s %s", &host, &password)
-	return host, password, nil
+func readCfg() (host, passwordAsMd5, update string, err error) {
+ path, _ := os.Getwd()
+
+ file, err := os.Open(path + string(filepath.Separator) + "duia.cfg")
+ if err != nil {
+  return "", "", "", err
+ }
+ defer file.Close()
+
+ fmt.Fscanf(file, "%s %s %s", &host, &passwordAsMd5, &update)
+ return host, passwordAsMd5, update, nil
 }
 
-func updateCfg(host, password string) {
-	// md5 password encoding
-	h := md5.New()
-	io.WriteString(h, password)
-	md5 := fmt.Sprintf("%x", h.Sum(nil))
-	// create creditentials file
-	path, _ := os.Getwd()
-	file, _ := os.Create(path + string(filepath.Separator) + "duia.cfg")
-	// write creditentials in unix clasic style format
-	fmt.Fprintf(file, "%s %s", host, md5)
+func computeMd5(str string) (strAsMd5 string){
+
+ h := md5.New()
+ io.WriteString(h, str)
+ strAsMd5 = fmt.Sprintf("%x", h.Sum(nil))
+
+ return strAsMd5
+}
+
+func updateCfg(host, passwordAsMd5, update string) {
+
+ path, _ := os.Getwd()
+ file, err := os.Create(path + string(filepath.Separator) + "duia.cfg")
+ if err != nil {
+  return
+ }
+ defer file.Close()
+
+
+ fmt.Fprintf(file, "%s %s %s", host, passwordAsMd5, update)
 }
 
 func updateLog(message string) {
-	path, _ := os.Getwd()
-	file, _ := os.OpenFile(path+string(filepath.Separator)+"duia.log", os.O_CREATE|os.O_APPEND, 0660)
-	t := time.Now().Format("2006-01-02 15:04:05")
-	fmt.Fprintf(file, "%s", "\n"+t+" - "+message)
+ path, _ := os.Getwd()
+ file, err := os.OpenFile(path+string(filepath.Separator)+"duia.log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0666)
+ if err != nil {
+  return
+ }
+ defer file.Close()
+
+ t := time.Now().Format("2006-01-02 15:04:05")
+ fmt.Fprintf(file, "%s", "\r\n"+t+" - "+message)
 }
 
-func main() {
-	// get current path
-	file, _ := exec.LookPath(os.Args[0])
-	dir, _ := path.Split(file)
-	// change to curent path to avoid problems when the program
-	// is launch from other location  without directory changed
-	os.Chdir(dir)
-	fmt.Println(dir)
+func duiaInit() (file string) {
 
-	// if duia.cfg does not exist, get hostname and passowrd from command line
-	host, password, err := readCfg()
-	if err != nil {
-		fmt.Println("Creating duia.cfg file ... please add:\n")
-		fmt.Print("Hostname: ")
-		fmt.Scan(&host)
-		fmt.Print("Password: ")
-		fmt.Scan(&password)
-		fmt.Println("")
-		updateCfg(host, password)
-		fmt.Println("duia.cfg file created\n")
-	}
+ file, _ = exec.LookPath(os.Args[0])
+ dir, _ := path.Split(filepath.ToSlash(file))
 
-	// if duia.cache does not exist, create it with "none" as ip addresses
-	ip4, ip6, err := readCache()
-	if err != nil {
-		ip4 = "none"
-		ip6 = "none"
-		updateCache(ip4, ip6)
-		fmt.Println("duia.cache file created\n")
-	}
-	needUpdate := false
-	//ipv4 support
-	ip4FromSite, err := getIpFromSite(4)
-	if err == nil {
-		// check if ip4 has changed to send DNS update
-		if ip4FromSite != ip4 {
-			ip4 = ip4FromSite
-			needUpdate = true
-		}
-	}
-	//ipv6 support
-	ip6FromSite, err := getIpFromSite(6)
-	if err == nil {
-		// check if ip6 has changed to send DNS update
-		if ip6FromSite != ip6 {
-			ip6 = ip6FromSite
-			needUpdate = true
-		}
-	}
-	if needUpdate {
-		updateDNS(host, password, ip4, ip6)
-		if ip4 != "none" {
-			fmt.Println("IPv4 DNS entry (" + host + ", " + ip4 + ") updated.")
-			updateLog("IPv4 DNS entry (" + host + ", " + ip4 + ") updated.")
-		}
-		if ip4 == "none" {
-			fmt.Println("IPv4 DNS entry for " + host + " deleted.")
-			updateLog("IPv4 DNS entry for " + host + " deleted.")
-		}
-		if ip6 != "none" {
-			fmt.Println("IPv6 DNS entry (" + host + ", " + ip6 + ") updated.\n")
-			updateLog("IPv6 DNS entry (" + host + ", " + ip6 + ") updated.\n")
-		}
-		if ip6 == "none" {
-			fmt.Println("IPv6 DNS entry for " + host + " deleted.\n")
-			updateLog("IPv6 DNS entry for " + host + " deleted.\n")
-		}
-		updateCache(ip4, ip6)
-		fmt.Println("duia.cache file updated.\n")
-		fmt.Println("duia.log file updated.\n")
-		//	fmt.Printf("cache updated: %02d:%02d.%02d\n", t.Hour(), t.Minute(), t.Second())
-	} else {
-		fmt.Println("No IPv4/IPv6 DNS updates.")
-	}
+
+ os.Chdir(dir)
+
+
+ return file
+}
+
+func duiaMain(file string) {
+
+ host, passwordAsMd5, update, err := readCfg()
+ if err != nil {
+  var password string
+  fmt.Println("Creating duia.cfg file ... please add:\n")
+  fmt.Print("Hostname: ")
+  fmt.Scan(&host)
+  fmt.Print("Password: ")
+  fmt.Scan(&password)
+  passwordAsMd5 = computeMd5(password)
+  fmt.Print("Update (ipv4/ipv6/both): ")
+     fmt.Scan(&update)
+     fmt.Println("")
+  updateCfg(host, password, update)
+  fmt.Println("duia.cfg file created\n")
+ }
+
+
+ ip4, ip6, err := readCache()
+ if err != nil {
+  ip4 = "none"
+  ip6 = "none"
+  updateCache(ip4, ip6)
+  fmt.Println("duia.cache file created\n")
+ }
+ needUpdate := false
+
+
+ if (update == "ipv4"){
+  ip4FromSite, err := getIpFromSite(4)
+  if err == nil {
+
+   if ip4FromSite != ip4 {
+    ip4 = ip4FromSite
+    needUpdate = true
+   }
+  }
+  ip6="none"
+  if needUpdate {
+   updateDNS4(host, passwordAsMd5, ip4)
+   if ip4 != "none" {
+    fmt.Println("IPv4 DNS entry (" + host + ", " + ip4 + ") updated.")
+    updateLog("IPv4 DNS entry (" + host + ", " + ip4 + ") updated.")
+   }
+   if ip4 == "none" {
+    fmt.Println("IPv4 DNS entry for " + host + " deleted. IPv4 internet connection cannot be established!")
+    updateLog("IPv4 DNS entry for " + host + " deleted. IPv4 internet connection cannot be established!")
+   }
+   updateCache(ip4, ip6)
+   fmt.Println("duia.cache file updated.\n")
+   fmt.Println("duia.log file updated.\n")
+  } else {
+   fmt.Println("No IPv4 DNS updates.")
+  }
+ }
+
+
+ if (update == "ipv6"){
+  ip6FromSite, err := getIpFromSite(6)
+  if err == nil {
+
+   if ip6FromSite != ip6 {
+    ip6 = ip6FromSite
+    needUpdate = true
+   }
+  }
+  ip4="none"
+  if needUpdate {
+   updateDNS6(host, passwordAsMd5, ip6)
+   if ip6 != "none" {
+    fmt.Println("IPv6 DNS entry (" + host + ", " + ip6 + ") updated.")
+    updateLog("IPv6 DNS entry (" + host + ", " + ip6 + ") updated.")
+   }
+   if ip6 == "none" {
+    fmt.Println("IPv6 DNS entry for " + host + " deleted. IPv6 internet connection cannot be established!")
+    updateLog("IPv6 DNS entry for " + host + " deleted. IPv6 internet connection cannot be established!")
+   }
+   updateCache(ip4, ip6)
+   fmt.Println("duia.cache file updated.\n")
+   fmt.Println("duia.log file updated.\n")
+  } else {
+   fmt.Println("No IPv6 DNS updates.")
+  }
+ }
+
+
+ if (update == "both"){
+  ip4FromSite, err := getIpFromSite(4)
+  if err == nil {
+
+   if ip4FromSite != ip4 {
+    ip4 = ip4FromSite
+    needUpdate = true
+   }
+  }
+  ip6FromSite, err := getIpFromSite(6)
+  if err == nil {
+
+   if ip6FromSite != ip6 {
+    ip6 = ip6FromSite
+    needUpdate = true
+   }
+  }
+  if needUpdate {
+   updateDNS(host, passwordAsMd5, ip4, ip6)
+   if ip4 != "none" {
+    fmt.Println("IPv4 DNS entry (" + host + ", " + ip4 + ") updated.")
+    updateLog("IPv4 DNS entry (" + host + ", " + ip4 + ") updated.")
+   }
+   if ip4 == "none" {
+    fmt.Println("IPv4 DNS entry for " + host + " deleted. IPv4 internet connection cannot be established!")
+    updateLog("IPv4 DNS entry for " + host + " deleted. IPv4 internet connection cannot be established!")
+   }
+   if ip6 != "none" {
+    fmt.Println("IPv6 DNS entry (" + host + ", " + ip6 + ") updated.")
+    updateLog("IPv6 DNS entry (" + host + ", " + ip6 + ") updated.")
+   }
+   if ip6 == "none" {
+    fmt.Println("IPv6 DNS entry for " + host + " deleted. IPv6 internet connection cannot be established!")
+    updateLog("IPv6 DNS entry for " + host + " deleted. IPv6 internet connection cannot be established!")
+   }
+   updateCache(ip4, ip6)
+   fmt.Println("duia.cache file updated.\n")
+   fmt.Println("duia.log file updated.\n")
+  } else {
+   fmt.Println("No IPv4/IPv6 DNS updates.")
+  }
+ }
 }
