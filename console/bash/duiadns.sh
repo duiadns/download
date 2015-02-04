@@ -14,7 +14,7 @@ has() {
 use_ip_version=4
 ip_cache_file="duia${use_ip_version}.cache"
 tmp_ip_file="$( mktemp )"
-user_agent="duia-unix-1.0.0.3"
+user_agent="github.bash-1.0.0.3"
 
 
 has curl || has wget || { echo "Either curl or wget is required, but none were found" 1>&2 && exit 1; }
