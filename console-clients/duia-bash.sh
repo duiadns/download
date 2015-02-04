@@ -34,13 +34,19 @@ fi
 
 
 set_ip_for_host () {
-	set_ip_url="http://ipv${use_ip_version}.duia.ro/dynamic.duia?host=$host&password=$md5_pass&ip${use_ip_version}=$ip" 
+	set_ip_url="http://ipv${use_ip_version}.duia.ro/dynamic.duia?host=$host&password=$md5_pass&ip${use_ip_version}=$ip"
+	server_response=0
 	if has wget; then
-		wget -qO- --user-agent="$user_agent" $set_ip_url > /dev/null
+		server_response=$(wget -S -qO- --user-agent="$user_agent" $set_ip_url 2>&1 | egrep "HTTP/[0-9\.[0-9]" | awk '{ print $2}')
 	else
-		curl -sG -A "${user_agent}" $set_ip_url > /dev/null
+		server_response=$(curl -sG -L -w "%{http_code}" -A "${user_agent}" $set_ip_url -o /dev/null )
 	fi
-	cp "${tmp_ip_file}" "${ip_cache_file}"
+	if [ $server_response -eq 200 ] ; then
+		cp "${tmp_ip_file}" "${ip_cache_file}"
+	else
+		echo "Update of your IPv${use_ip_version} address failed! Server response was $server_response" >&2
+		exit 1
+	fi
 	rm -f "${tmp_ip_file}"
 	
 	ip_check=$( cat "${ip_cache_file}" )
