@@ -18,8 +18,8 @@ import (
  "time"
 )
 
-const DuiaVersion = "2" + "." + "0" + "." + "0" + "." + "3"
-const UserAgent = "github.go" + "-" + DuiaVersion
+const DuiaVersion = "2" + "." + "0" + "." + "0" + "." + "4"
+const UserAgent = "duia-linux-x86" + "-" + DuiaVersion
 
 func getIpFromSite(version int) (s string, err error) {
 
@@ -50,34 +50,34 @@ func doRequest(urlStr string) (r *http.Response, err error) {
  return resp, err
 }
 
-func updateDNS4(host, password, ip4 string) (err error) {
+func updateDNS4(host, password, ip4 string) (d int, err error) {
 
  resp, err := doRequest("https://ipv4.duia.ro/dynamic.duia?host="+host+"&password="+password+"&ip4="+ip4)
  if err != nil {
-  return nil
+  return -1, nil
  }
  defer resp.Body.Close()
- return nil
+ return resp.StatusCode, nil
 }
 
-func updateDNS6(host, password, ip6 string) (err error) {
+func updateDNS6(host, password, ip6 string) (d int, err error) {
 
  resp, err := doRequest("https://ipv6.duia.ro/dynamic.duia?host="+host+"&password="+password+"&ip6="+ip6)
  if err != nil {
-  return nil
+  return -1, nil
  }
  defer resp.Body.Close()
- return nil
+ return resp.StatusCode, nil
 }
 
-func updateDNS(host, passwordAsMd5, ip4, ip6 string) (err error) {
+func updateDNS(host, passwordAsMd5, ip4, ip6 string) (d int, err error) {
 
  resp, err := doRequest("https://ipv4.duia.ro/dynamic.duia?host="+host+"&password="+passwordAsMd5+"&ip4="+ip4+"&ip6="+ip6)
  if err != nil {
-  return nil
+  return -1, nil
  }
  defer resp.Body.Close()
- return nil
+ return resp.StatusCode, nil
 }
 
 func readCache() (ip4, ip6 string, err error) {
@@ -178,7 +178,7 @@ func duiaMain(file string) {
   fmt.Print("Update (ipv4/ipv6/both): ")
      fmt.Scan(&update)
      fmt.Println("")
-  updateCfg(host, password, update)
+  updateCfg(host, passwordAsMd5, update)
   fmt.Println("duia.cfg file created\n")
  }
 
@@ -204,18 +204,30 @@ func duiaMain(file string) {
   }
   ip6="none"
   if needUpdate {
-   updateDNS4(host, passwordAsMd5, ip4)
-   if ip4 != "none" {
-    fmt.Println("IPv4 DNS entry (" + host + ", " + ip4 + ") updated.")
-    updateLog("IPv4 DNS entry (" + host + ", " + ip4 + ") updated.")
+   http_code, err := updateDNS4(host, passwordAsMd5, ip4)
+   if err == nil{
+    if http_code == 200{
+     if ip4 != "none" {
+      fmt.Println("IPv4 DNS entry (" + host + ", " + ip4 + ") updated.")
+      updateLog("IPv4 DNS entry (" + host + ", " + ip4 + ") updated.")
+     }
+     if ip4 == "none" {
+      fmt.Println("IPv4 DNS entry for " + host + " deleted. IPv4 internet connection cannot be established!")
+      updateLog("IPv4 DNS entry for " + host + " deleted. IPv4 internet connection cannot be established!")
+     }
+     updateCache(ip4, ip6)
+     fmt.Println("duia.cache file updated.\n")
+     fmt.Println("duia.log file updated.\n")
+    }else if http_code == 401{
+     log_err := "DNS update failed, invalid hostname or password!"
+                                        fmt.Println(log_err)
+     updateLog(log_err)
+           }else{
+                                        log_err := "DNS update failed, error code " + strconv.Itoa(http_code) + "!"
+                                        fmt.Println(log_err)
+                                        updateLog(log_err)
+    }
    }
-   if ip4 == "none" {
-    fmt.Println("IPv4 DNS entry for " + host + " deleted. IPv4 internet connection cannot be established!")
-    updateLog("IPv4 DNS entry for " + host + " deleted. IPv4 internet connection cannot be established!")
-   }
-   updateCache(ip4, ip6)
-   fmt.Println("duia.cache file updated.\n")
-   fmt.Println("duia.log file updated.\n")
   } else {
    fmt.Println("No IPv4 DNS updates.")
   }
@@ -233,18 +245,30 @@ func duiaMain(file string) {
   }
   ip4="none"
   if needUpdate {
-   updateDNS6(host, passwordAsMd5, ip6)
-   if ip6 != "none" {
-    fmt.Println("IPv6 DNS entry (" + host + ", " + ip6 + ") updated.")
-    updateLog("IPv6 DNS entry (" + host + ", " + ip6 + ") updated.")
+   http_code, err := updateDNS6(host, passwordAsMd5, ip6)
+   if err == nil{
+    if http_code == 200{
+     if ip6 != "none" {
+      fmt.Println("IPv6 DNS entry (" + host + ", " + ip6 + ") updated.")
+      updateLog("IPv6 DNS entry (" + host + ", " + ip6 + ") updated.")
+     }
+     if ip6 == "none" {
+      fmt.Println("IPv6 DNS entry for " + host + " deleted. IPv6 internet connection cannot be established!")
+      updateLog("IPv6 DNS entry for " + host + " deleted. IPv6 internet connection cannot be established!")
+     }
+     updateCache(ip4, ip6)
+     fmt.Println("duia.cache file updated.\n")
+     fmt.Println("duia.log file updated.\n")
+                                }else if http_code == 401{
+                                        log_err := "DNS update failed, invalid hostname or password!"
+                                        fmt.Println(log_err)
+                                        updateLog(log_err)
+    }else{
+     log_err := "DNS update failed, error code " + strconv.Itoa(http_code) + "!"
+     fmt.Println(log_err)
+     updateLog(log_err)
+    }
    }
-   if ip6 == "none" {
-    fmt.Println("IPv6 DNS entry for " + host + " deleted. IPv6 internet connection cannot be established!")
-    updateLog("IPv6 DNS entry for " + host + " deleted. IPv6 internet connection cannot be established!")
-   }
-   updateCache(ip4, ip6)
-   fmt.Println("duia.cache file updated.\n")
-   fmt.Println("duia.log file updated.\n")
   } else {
    fmt.Println("No IPv6 DNS updates.")
   }
@@ -269,26 +293,39 @@ func duiaMain(file string) {
    }
   }
   if needUpdate {
-   updateDNS(host, passwordAsMd5, ip4, ip6)
-   if ip4 != "none" {
-    fmt.Println("IPv4 DNS entry (" + host + ", " + ip4 + ") updated.")
-    updateLog("IPv4 DNS entry (" + host + ", " + ip4 + ") updated.")
+   http_code, err := updateDNS6(host, passwordAsMd5, ip6)
+   if err == nil{
+    if http_code == 200{
+     updateDNS(host, passwordAsMd5, ip4, ip6)
+     if ip4 != "none" {
+      fmt.Println("IPv4 DNS entry (" + host + ", " + ip4 + ") updated.")
+      updateLog("IPv4 DNS entry (" + host + ", " + ip4 + ") updated.")
+     }
+     if ip4 == "none" {
+      fmt.Println("IPv4 DNS entry for " + host + " deleted. IPv4 internet connection cannot be established!")
+      updateLog("IPv4 DNS entry for " + host + " deleted. IPv4 internet connection cannot be established!")
+     }
+     if ip6 != "none" {
+      fmt.Println("IPv6 DNS entry (" + host + ", " + ip6 + ") updated.")
+      updateLog("IPv6 DNS entry (" + host + ", " + ip6 + ") updated.")
+     }
+     if ip6 == "none" {
+      fmt.Println("IPv6 DNS entry for " + host + " deleted. IPv6 internet connection cannot be established!")
+      updateLog("IPv6 DNS entry for " + host + " deleted. IPv6 internet connection cannot be established!")
+     }
+     updateCache(ip4, ip6)
+     fmt.Println("duia.cache file updated.\n")
+     fmt.Println("duia.log file updated.\n")
+                                }else if http_code == 401{
+                                        log_err := "DNS update failed, invalid hostname or password!"
+                                        fmt.Println(log_err)
+                                        updateLog(log_err)
+    }else{
+     log_err := "DNS update failed, error code " + strconv.Itoa(http_code) + "!"
+     fmt.Println(log_err)
+     updateLog(log_err)
+    }
    }
-   if ip4 == "none" {
-    fmt.Println("IPv4 DNS entry for " + host + " deleted. IPv4 internet connection cannot be established!")
-    updateLog("IPv4 DNS entry for " + host + " deleted. IPv4 internet connection cannot be established!")
-   }
-   if ip6 != "none" {
-    fmt.Println("IPv6 DNS entry (" + host + ", " + ip6 + ") updated.")
-    updateLog("IPv6 DNS entry (" + host + ", " + ip6 + ") updated.")
-   }
-   if ip6 == "none" {
-    fmt.Println("IPv6 DNS entry for " + host + " deleted. IPv6 internet connection cannot be established!")
-    updateLog("IPv6 DNS entry for " + host + " deleted. IPv6 internet connection cannot be established!")
-   }
-   updateCache(ip4, ip6)
-   fmt.Println("duia.cache file updated.\n")
-   fmt.Println("duia.log file updated.\n")
   } else {
    fmt.Println("No IPv4/IPv6 DNS updates.")
   }
