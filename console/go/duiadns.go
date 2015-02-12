@@ -19,7 +19,7 @@ import (
 )
 
 const DuiaVersion = "2" + "." + "0" + "." + "0" + "." + "4"
-const UserAgent = "duia-linux-x86" + "-" + DuiaVersion
+const UserAgent = "github.go" + "-" + DuiaVersion
 
 func getIpFromSite(version int) (s string, err error) {
 
