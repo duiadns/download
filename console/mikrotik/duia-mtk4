@@ -1,0 +1,22 @@
+# Define User Variables
+:global duiapassmd5 "452564d36cd7f31d1d8634d7eb6ce205" # use your own md5 pass
+:global duiahost "example.duia.ro" # use your own hostname
+
+# Define Global Variables
+:global currentIPv4
+
+# Get the current public IPv4 address
+/tool fetch mode=http address="ipv4.duia.ro" src-path="/" dst-path="/duia.checkipv4.html"
+:delay 1
+:local result [/file get duia.checkipv4.html contents]
+
+# parse the current IPv4 result
+:local resultLen [:len $result]
+:local newIPv4 [:pick $result 0 $resultLen]
+:file remove duia.checkipv4.html
+
+:if ($newIPv4 != $currentIPv4) do={
+:set currentIPv4 $newIPv4
+/tool fetch mode="http" url="http://ipv4.duia.ro/dynamic.duia\?host=$duiahost&password=$duiapassmd5&ip4=$newIPv4"
+:log info "Dynamic DNS IPv4 update: $newIPv4"
+}

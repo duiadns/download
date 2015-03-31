@@ -1,0 +1,22 @@
+# Define User Variables
+:global duiapassmd5 "452564d36cd7f31d1d8634d7eb6ce205" # use your own md5 pass
+:global duiahost "example.duia.ro" #use your own hostname
+
+# Define Global Variables
+:global currentIPv6
+
+# Find the current public IPv6 address
+/tool fetch mode=http address="ipv6.duia.ro" src-path="/" dst-path="/duia.checkipv6.html"
+:delay 1
+:local result [/file get duia.checkipv6.html contents]
+
+# parse the current IPv6 result
+:local resultLen [:len $result]
+:local newIPv6 [:pick $result 0 $resultLen]
+:file remove duia.checkipv6.html
+
+:if ($newIPv6 != $currentIPv6) do={
+:set currentIPv6 $newIPv6
+/tool fetch mode="http" url="http://ipv6.duia.ro/dynamic.duia\?host=$duiahost&password=$duiapassmd5&ip6=$newIPv6"
+:log info "Dynamic DNS IPv6 update: $newIPv6"
+}
