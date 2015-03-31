@@ -1,12 +1,12 @@
 # Define User Variables
-:global duiapassmd5 "452564d36cd7f31d1d8634d7eb6ce205" # use your own md5 pass
-:global duiahost "example.duia.ro" # use your own hostname
+:local duiapassmd5 "452564d36cd7f31d1d8634d7eb6ce205" # use your own md5 pass
+:local duiahost "example.duia.ro" # use your own hostname
 
 # Define Global Variables
 :global currentIPv4
 
 # Get the current public IPv4 address
-/tool fetch mode=http address="ipv4.duia.ro" src-path="/" dst-path="/duia.checkipv4.html"
+/tool fetch mode=http url="http://ipv4.duia.ro/" /dst-path="/duia.checkipv4.html"
 :delay 1
 :local result [/file get duia.checkipv4.html contents]
 
