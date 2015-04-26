@@ -25,8 +25,10 @@ die() {
 
 use_ip_version=4
 ip_cache_file="duia${use_ip_version}.cache"
-tmp_ip_file=$(mktemp -t duia.XXXXXXXXXX)
 user_agent="github.bash-1.0.0.4"
+
+tmp_ip_file=$(mktemp -t duia.XXXXXXXXXX)
+[ $? -gt 0 ] && die "Could not create temporary file"
 
 has curl || has wget || die "Either curl or wget is required, but none were found"
 
@@ -48,7 +50,7 @@ if has wget; then
 else
 	ip=`curl -sG ${ip_url}`
 fi
-echo $ip > $tmp_ip_file
+echo $ip > $tmp_ip_file || die "Could not write to temporary file"
 
 size=${#ip}
 if [ "$size" -gt "5" ]; then
@@ -81,3 +83,5 @@ else
 fi
 
 cleanup_and_exit 0
+
+# vim: noet ts=8 sw=8
