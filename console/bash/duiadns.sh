@@ -11,19 +11,29 @@ has() {
 	type $1 > /dev/null 2>&1
 }
 
+cleanup_and_exit() {
+    if [ -n "$tmp_ip_file" ] && [ -f "$tmp_ip_file" ]; then
+        rm -f $tmp_ip_file
+    fi
+    exit "$1"
+}
+
+die() {
+    echo "$@" >&2
+    cleanup_and_exit 1
+}
+
 use_ip_version=4
 ip_cache_file="duia${use_ip_version}.cache"
-#tmp_ip_file="$( mktemp )"
-tmp_ip_file="duia.tmp"
+tmp_ip_file=$(mktemp -t duia.XXXXXXXXXX)
 user_agent="github.bash-1.0.0.4"
 
 
-has curl || has wget || { echo "Either curl or wget is required, but none were found" 1>&2 && exit 1; }
+has curl || has wget || die "Either curl or wget is required, but none were found"
 
 
 if [ $host = "example.duia.us" ] || [ $md5_pass = "000000000000000000000000000000" ] ; then
-	echo "Edit this script and add your own hostname and md5 password!" >&2
-	exit
+	die "Edit this script and add your own hostname and md5 password!"
 fi
 
 ip_url="http://ipv${use_ip_version}.duia.ro"
@@ -45,14 +55,11 @@ if [ "$size" -gt "5" ]; then
 		if [ $server_response -eq 200 ] ; then
 			cp "${tmp_ip_file}" "${ip_cache_file}"
 		else
-			echo "Update of your IPv${use_ip_version} address failed! Server response was $server_response" >&2
-			exit 1
+			die "Update of your IPv${use_ip_version} address failed! Server response was $server_response"
 		fi
-		rm -f "${tmp_ip_file}"
 		ip_check=$( cat "${ip_cache_file}" )
 		if [ "$ip_check" != "$ip" ] ; then
-			echo "The cache file ${ip_cache_file} does not contain what expected." >&2
-			exit 1
+			die "The cache file ${ip_cache_file} does not contain what expected." >&2
 		fi
 	}
 	echo $ip > $tmp_ip_file
@@ -64,12 +71,13 @@ if [ "$size" -gt "5" ]; then
 			set_ip_for_host
 		else
 			echo "Your IPv${use_ip_version} address is in ${ip_cache_file} file; do nothing!"
-			rm -f "${tmp_ip_file}"
 		fi
 	else
 		echo "The ${ip_cache_file} file does not exists; initiate DNS update & create ${ip_cache_file} file"
 		set_ip_for_host
 	fi
 else
-	echo "The IP address returned by ipv${use_ip_version}.duia.ro is NULL. This is really odd, do nothing this time!"
+	die "The IP address returned by ipv${use_ip_version}.duia.ro is NULL. This is really odd, do nothing this time!"
 fi
+
+cleanup_and_exit
