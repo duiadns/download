@@ -50,6 +50,7 @@ if has wget; then
 else
 	ip=`curl -sG ${ip_url}`
 fi
+[ $? -gt 0 ] && die "Could not get current ip address from ${ip_url}"
 echo $ip > $tmp_ip_file || die "Could not write to temporary file"
 
 size=${#ip}
