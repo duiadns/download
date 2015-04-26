@@ -3,7 +3,7 @@
 # if you don't know your own md5_pass please visit https://www.duiadns.net/account/account_info.html
 
 ##################### USE YOUR OWN CREDENTIALS HERE!!! #####################
-host="example.duia.us" # replace with your own hostname                    #
+host="example.duia.us" # replace with your own hostname			   #
 md5_pass="000000000000000000000000000000" # replace with your own md5_pass #
 ############################################################################
 
@@ -12,15 +12,15 @@ has() {
 }
 
 cleanup_and_exit() {
-    if [ -n "$tmp_ip_file" ] && [ -f "$tmp_ip_file" ]; then
-        rm -f $tmp_ip_file
-    fi
-    exit "$1"
+	if [ -n "$tmp_ip_file" ] && [ -f "$tmp_ip_file" ]; then
+		rm -f $tmp_ip_file
+	fi
+	exit "$1"
 }
 
 die() {
-    echo "$@" >&2
-    cleanup_and_exit 1
+	echo "$@" >&2
+	cleanup_and_exit 1
 }
 
 use_ip_version=4
@@ -28,13 +28,19 @@ ip_cache_file="duia${use_ip_version}.cache"
 tmp_ip_file=$(mktemp -t duia.XXXXXXXXXX)
 user_agent="github.bash-1.0.0.4"
 
-
 has curl || has wget || die "Either curl or wget is required, but none were found"
-
 
 if [ $host = "example.duia.us" ] || [ $md5_pass = "000000000000000000000000000000" ] ; then
 	die "Edit this script and add your own hostname and md5 password!"
 fi
+
+# make sure the ip_cache_file exists and is readable and writeable
+[ -f "${ip_cache_file}" ] || touch "${ip_cache_file}" ||
+	die "Cannot create cache file ${ip_cache_file}"
+[ -r "${ip_cache_file}" ] && [ -w "${ip_cache_file}" ] ||
+	die "Cannot read and write cache file ${ip_cache_file}"
+
+old_ip=$(cat ${ip_cache_file})
 
 ip_url="http://ipv${use_ip_version}.duia.ro"
 if has wget; then
@@ -42,6 +48,8 @@ if has wget; then
 else
 	ip=`curl -sG ${ip_url}`
 fi
+echo $ip > $tmp_ip_file
+
 size=${#ip}
 if [ "$size" -gt "5" ]; then
 	set_ip_for_host () {
@@ -59,25 +67,17 @@ if [ "$size" -gt "5" ]; then
 		fi
 		ip_check=$( cat "${ip_cache_file}" )
 		if [ "$ip_check" != "$ip" ] ; then
-			die "The cache file ${ip_cache_file} does not contain what expected." >&2
+			die "The cache file ${ip_cache_file} does not contain what expected."
 		fi
 	}
-	echo $ip > $tmp_ip_file
-	if [ -f "${ip_cache_file}" ] ; then
-		echo "The file ${ip_cache_file} exists"
-		n=`grep $ip "$ip_cache_file" | wc -l`
-		if [ $n -eq 0 ] ; then
-			echo "Your IPv${use_ip_version} address is not in ${ip_cache_file} file; initiate DNS update & ${ip_cache_file} file update!"
-			set_ip_for_host
-		else
-			echo "Your IPv${use_ip_version} address is in ${ip_cache_file} file; do nothing!"
-		fi
-	else
-		echo "The ${ip_cache_file} file does not exists; initiate DNS update & create ${ip_cache_file} file"
+	if [ "${old_ip}" != "${ip}" ] ; then
+		echo "Your IPv${use_ip_version} address is not in ${ip_cache_file} file; initiate DNS update & ${ip_cache_file} file update!"
 		set_ip_for_host
+	else
+		echo "Your IPv${use_ip_version} address is in ${ip_cache_file} file; do nothing!"
 	fi
 else
 	die "The IP address returned by ipv${use_ip_version}.duia.ro is NULL. This is really odd, do nothing this time!"
 fi
 
-cleanup_and_exit
+cleanup_and_exit 0
