@@ -23,7 +23,7 @@ const UserAgent = "github.go" + "-" + DuiaVersion
 
 func getIpFromSite(version int) (s string, err error) {
 
- resp, err := doRequest("https://" + "ipv" + strconv.Itoa(version) + ".duia.ro")
+ resp, err := doRequest("https://" + "ipv" + strconv.Itoa(version) + ".duiadns.net")
  if err != nil {
 
   return "none", err
@@ -52,7 +52,7 @@ func doRequest(urlStr string) (r *http.Response, err error) {
 
 func updateDNS4(host, password, ip4 string) (d int, err error) {
 
- resp, err := doRequest("https://ipv4.duia.ro/dynamic.duia?host="+host+"&password="+password+"&ip4="+ip4)
+ resp, err := doRequest("https://ipv4.duiadns.net/dynamic.duia?host="+host+"&password="+password+"&ip4="+ip4)
  if err != nil {
   return -1, nil
  }
@@ -62,7 +62,7 @@ func updateDNS4(host, password, ip4 string) (d int, err error) {
 
 func updateDNS6(host, password, ip6 string) (d int, err error) {
 
- resp, err := doRequest("https://ipv6.duia.ro/dynamic.duia?host="+host+"&password="+password+"&ip6="+ip6)
+ resp, err := doRequest("https://ipv6.duiadns.net/dynamic.duia?host="+host+"&password="+password+"&ip6="+ip6)
  if err != nil {
   return -1, nil
  }
@@ -72,7 +72,7 @@ func updateDNS6(host, password, ip6 string) (d int, err error) {
 
 func updateDNS(host, passwordAsMd5, ip4, ip6 string) (d int, err error) {
 
- resp, err := doRequest("https://ipv4.duia.ro/dynamic.duia?host="+host+"&password="+passwordAsMd5+"&ip4="+ip4+"&ip6="+ip6)
+ resp, err := doRequest("https://ipv4.duiadns.net/dynamic.duia?host="+host+"&password="+passwordAsMd5+"&ip4="+ip4+"&ip6="+ip6)
  if err != nil {
   return -1, nil
  }
