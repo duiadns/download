@@ -44,7 +44,7 @@ fi
 
 old_ip=$(cat ${ip_cache_file})
 
-ip_url="http://ipv${use_ip_version}.duia.ro"
+ip_url="https://ipv${use_ip_version}.duiadns.net"
 if has wget; then
 	ip=`wget -qO- ${ip_url}`
 else
@@ -56,7 +56,7 @@ echo $ip > $tmp_ip_file || die "Could not write to temporary file"
 size=${#ip}
 if [ "$size" -gt "5" ]; then
 	set_ip_for_host () {
-		set_ip_url="http://ipv${use_ip_version}.duia.ro/dynamic.duia?host=$host&password=$md5_pass&ip${use_ip_version}=$ip"
+		set_ip_url="https://ipv${use_ip_version}.duiadns.net/dynamic.duia?host=$host&password=$md5_pass&ip${use_ip_version}=$ip"
 		server_response=0
 		if has wget; then
 			server_response=$(wget -S -qO- -U "$user_agent" $set_ip_url 2>&1 | egrep "HTTP/[0-9\.[0-9]" | awk '{ print $2}')
