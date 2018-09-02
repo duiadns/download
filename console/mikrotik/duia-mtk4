@@ -6,7 +6,7 @@
 :global currentIPv4
 
 # Get the current public IPv4 address
-/tool fetch mode=http url="http://ipv4.duia.ro/" /dst-path="/duia.checkipv4.html"
+/tool fetch mode=http url="http://ipv4.duiadns.net/" /dst-path="/duia.checkipv4.html"
 :delay 1
 :local result [/file get duia.checkipv4.html contents]
 
@@ -17,6 +17,6 @@
 
 :if ($newIPv4 != $currentIPv4) do={
 :set currentIPv4 $newIPv4
-/tool fetch mode="http" url="http://ipv4.duia.ro/dynamic.duia\?host=$duiahost&password=$duiapassmd5&ip4=$newIPv4"
+/tool fetch mode="http" url="http://ipv4.duiadns.net/dynamic.duia\?host=$duiahost&password=$duiapassmd5&ip4=$newIPv4"
 :log info "Dynamic DNS IPv4 update: $newIPv4"
 }
