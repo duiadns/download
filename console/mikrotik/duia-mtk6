@@ -20,7 +20,7 @@
 
 :if ($newIPv6 != $currentIPv6) do={
 :set currentIPv6 $newIPv6
-/tool fetch mode="http" url="http://ipv6.duia.ro/dynamic.duia\?host=$duiahost&password=$duiapassmd5&ip6=$newIPv6"
+/tool fetch mode="http" url="http://ipv6.duiadns.net/dynamic.duia\?host=$duiahost&password=$duiapassmd5&ip6=$newIPv6"
 :log info "Dynamic DNS IPv6 update: $newIPv6"
 } else={
    :log info "No IPv6 DNS updates" # comment this line to keep your logs clear!
